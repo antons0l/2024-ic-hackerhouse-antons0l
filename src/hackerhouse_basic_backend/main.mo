@@ -15,22 +15,40 @@ actor {
     let userIdMap = Map.new<Principal, Nat>();
     let userProfileMap = Map.new<Nat, Text>();
     public query ({ caller }) func getUserProfile() : async Result.Result<{ id : Nat; name : Text }, Text> {
-        return #ok({ id = 123; name = "test" });
+        let id = switch(Map.get(userIdMap, phash, caller)) {
+            case (?found) found;
+            case (_) { return #err("User not found")}
+        };
+        let name = switch(Map.get(userProfileMap, nhash, id)){
+            case (?found) found;
+            case (_) { return #err("User not found")}
+        };
+
+        return #ok({ id = id; name = name });
     };
 
     public shared ({ caller }) func setUserProfile(name : Text) : async Result.Result<{ id : Nat; name : Text }, Text> {
-        // check existance
+        // check existence
         let foundUser = Map.get(userIdMap, phash, caller);
         switch (foundUser) {
-            case (?idFound) return #err("User already has an id - " # Nat.toText(idFound));
-            case (_) {};
+            case (?_x) {};
+            case (_) {
+                // if doesn't exist, set user id
+                Map.set(userIdMap, phash, caller, autoIndex);
+                autoIndex += 1;
+            };
         };
 
-        Map.set(userIdMap, phash, caller, autoIndex);
-        autoIndex += 1;
+        
+        // set user profile name
+        let id = switch(Map.get(userIdMap, phash, caller)) {
+            case (?found) found;
+            case (_) { return #err("User not found")}
+        };
 
-        // if doesn't exist, save it
-        return #ok({ id = autoIndex - 1; name = name });
+        Map.set(userProfileMap, nhash, id, name);
+        
+        return #ok({ id = id; name = name });
     };
 
     public shared ({ caller }) func addUserResult(result : Text) : async Result.Result<{ id : Nat; results : [Text] }, Text> {
