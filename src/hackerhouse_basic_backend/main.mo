@@ -9,11 +9,13 @@ import Debug "mo:base/Debug";
 import Nat "mo:base/Nat";
 import Map "mo:map/Map";
 import {phash; nhash} "mo:map/Map";
+import Vector "mo:vector";
 
 actor {
     stable var autoIndex = 0;
     let userIdMap = Map.new<Principal, Nat>();
     let userProfileMap = Map.new<Nat, Text>();
+    let userResultMap = Map.new<Nat, Vector.Vector<Text>>();
     public query ({ caller }) func getUserProfile() : async Result.Result<{ id : Nat; name : Text }, Text> {
         let id = switch(Map.get(userIdMap, phash, caller)) {
             case (?found) found;
@@ -52,11 +54,36 @@ actor {
     };
 
     public shared ({ caller }) func addUserResult(result : Text) : async Result.Result<{ id : Nat; results : [Text] }, Text> {
-        return #ok({ id = 123; results = ["fake result"] });
+        // check user existence
+        let id = switch(Map.get(userIdMap, phash, caller)) {
+            case (?found) found;
+            case (_) { return #err("User not found")}
+        };
+
+        let results = switch(Map.get(userResultMap, nhash, id)) {
+            case (?found) found;
+            case (_) Vector.new<Text>();
+        };
+
+        Vector.add(results, result);
+        Map.set(userResultMap, nhash, id, results);
+
+        return #ok({ id = id; results = Vector.toArray(results) });
     };
 
     public query ({ caller }) func getUserResults() : async Result.Result<{ id : Nat; results : [Text] }, Text> {
-        return #ok({ id = 123; results = ["fake result"] });
+        // check user existence
+        let id = switch(Map.get(userIdMap, phash, caller)) {
+            case (?found) found;
+            case (_) { return #err("User not found")}
+        };
+
+        let results = switch(Map.get(userResultMap, nhash, id)) {
+            case (?found) found;
+            case (_) Vector.new<Text>();
+        };
+
+        return #ok({ id = id; results = Vector.toArray(results) });
     };
 
     public func outcall_ai_model_for_sentiment_analysis(paragraph : Text) : async Result.Result<{ paragraph : Text; result : Text }, Text> {
