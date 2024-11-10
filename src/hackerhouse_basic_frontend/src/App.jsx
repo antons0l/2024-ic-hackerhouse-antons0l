@@ -5,6 +5,7 @@ function App() {
   const [backendActor, setBackendActor] = useState();
   const [userId, setUserId] = useState();
   const [userName, setUserName] = useState();
+  const [sentimentAnalysisResult, setSentimentAnalysisResult] = useState();
 
   function handleSubmitUserProfile(event) {
     event.preventDefault();
@@ -20,6 +21,24 @@ function App() {
         setUserId("Unexpected error, check the console");
       }
     });
+    return false;
+  }
+
+  function handleSentimentAnalysis(event) {
+    event.preventDefault();
+    const phrase = event.target.elements.phrase.value;
+    backendActor
+      .outcall_ai_model_for_sentiment_analysis(phrase)
+      .then((response) => {
+        if (response.ok) {
+          setSentimentAnalysisResult(response.ok.result);
+        } else if (response.err) {
+          setSentimentAnalysisResult(response.err);
+        } else {
+          console.error(response);
+          setSentimentAnalysisResult("Unexpected error, check the console");
+        }
+      });
     return false;
   }
 
@@ -40,6 +59,11 @@ function App() {
             <label htmlFor="name">Enter your name: &nbsp;</label>
             <input id="name" alt="Name" type="text" />
             <button type="submit">Save</button>
+          </form>
+          <form action="#" onSubmit={handleSentimentAnalysis}>
+            <label htmlFor="analysis">Sentiment analysis: &nbsp;</label>
+            <input id="phrase" alt="Phrase" type="text" />
+            <button type="submit">Analyze</button>
           </form>
           {userId && <section className="response">{userId}</section>}
           {userName && <section className="response">{userName}</section>}
