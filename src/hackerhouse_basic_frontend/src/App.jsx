@@ -67,6 +67,9 @@ function App() {
           </form>
           {userId && <section className="response">{userId}</section>}
           {userName && <section className="response">{userName}</section>}
+          {sentimentAnalysisResult && (
+            <section className="response">{sentimentAnalysisResult}</section>
+          )}
         </>
       )}
     </main>
