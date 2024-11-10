@@ -7,9 +7,11 @@ import Text "mo:base/Text";
 import Cycles "mo:base/ExperimentalCycles";
 import Debug "mo:base/Debug";
 import Nat "mo:base/Nat";
+import Float "mo:base/Float";
 import Map "mo:map/Map";
 import {phash; nhash} "mo:map/Map";
 import Vector "mo:vector";
+import { JSON } "mo:serde";
 
 actor {
     stable var autoIndex = 0;
@@ -102,13 +104,32 @@ actor {
 
         let text_response = await make_post_http_outcall(host, path, headers, body_json);
 
-        // TODO
-        // Install "serde" package and parse JSON
-        // calculate highest sentiment and return it as a result
+        // parse JSON
+        let blob = switch (JSON.fromText(text_response, null)) {
+            case (#ok(b)) { b };
+            case (_) { return #err("Error decoding JSON: " # text_response)};
+        };
 
+        let results : ?[[{ label_ : Text; score : Float }]] = from_candid (blob);
+        let parsed_results = switch (results) {
+            case (null) { return #err("Error parsing JSON: " # text_response)};
+            case (?x) { x[0] };
+        };
+
+        // Loop through parsed_results and find the entry with the highest score
+        var max_score = -1.0;
+        var max_label = "";
+        for (entry in parsed_results.vals()) {
+            if (entry.score > max_score) {
+                max_score := entry.score;
+                max_label := entry.label_;
+            }
+        };
+        
+        // Return the label and score with the highest score
         return #ok({
             paragraph = paragraph;
-            result = text_response;
+            result = "Highest score: " # max_label # " with a score of " # Float.toText(max_score);
         });
     };
 
@@ -173,7 +194,7 @@ actor {
         let http_request : Types.HttpRequestArgs = {
             url = url;
             max_response_bytes = null; //optional for request
-            headers = request_headers;
+            headers = merged_headers;
             // note: type of `body` is ?[Nat8] so it is passed here as "?request_body_as_nat8" instead of "request_body_as_nat8"
             body = ?request_body_as_nat8;
             method = #post;
